@@ -134,6 +134,30 @@ class ProcessList(Static):
         
         self.update("\n".join(lines))
     
+    def on_click(self, event: events.Click) -> None:
+        """Handle click events for column sorting."""
+        # Only handle clicks on the header line (y=0)
+        if event.y == 0:
+            x = event.x
+            # Column positions (accounting for padding)
+            # PID: 0-8, CPU: 10-16, MEM: 18-24, CMD: 26+
+            if x < 10:
+                col = "pid"
+            elif x < 18:
+                col = "cpu"
+            elif x < 26:
+                col = "mem"
+            else:
+                col = "cmd"
+            
+            if self.sort_by == col:
+                self.sort_reverse = not self.sort_reverse
+            else:
+                self.sort_by = col
+                self.sort_reverse = True
+            self._refresh_display()
+            event.stop()
+    
     def on_key(self, event: events.Key) -> None:
         """Handle key events."""
         if event.key == "up":
