@@ -134,12 +134,12 @@ class ProcessList(Static):
         
         self.update("\n".join(lines))
     
-    def on_click(self, event: events.Click) -> None:
-        """Handle click events for column sorting."""
-        # Only handle clicks on the header line (y=0)
-        if event.y == 0:
-            x = event.x
-            # Column positions (accounting for padding)
+    def on_mouse_up(self, event: events.MouseUp) -> None:
+        """Handle mouse up events for column sorting."""
+        # Header is at y=1 due to padding (padding: 1 2 in CSS)
+        if event.y == 1:
+            x = event.x - 2  # Account for horizontal padding
+            # Column positions based on header format: "     PID   CPU%↓    MEM%  COMMAND"
             # PID: 0-8, CPU: 10-16, MEM: 18-24, CMD: 26+
             if x < 10:
                 col = "pid"
