@@ -35,6 +35,7 @@ class ProcessList(Static):
     sort_by = reactive("cpu")
     sort_reverse = reactive(True)
     selected_index = reactive(0)
+    expanded_index = reactive(-1)  # Index of process with expanded command (-1 = none)
     
     class ProcessSelected(Message):
         """Message sent when a process is selected."""
@@ -114,9 +115,9 @@ class ProcessList(Static):
             cpu_str = f"{proc.cpu:>5.1f}%"
             mem_str = f"{proc.mem:>5.1f}%"
             
-            # Truncate command if too long
+            # Truncate command if too long (unless expanded)
             cmd = proc.cmd
-            if len(cmd) > 60:
+            if len(cmd) > 60 and i != self.expanded_index:
                 cmd = cmd[:57] + "..."
             
             line = f"{proc.pid:>8}  {cpu_str:>6}  {mem_str:>6}  {cmd}"
@@ -135,10 +136,11 @@ class ProcessList(Static):
         self.update("\n".join(lines))
     
     def on_mouse_up(self, event: events.MouseUp) -> None:
-        """Handle mouse up events for column sorting."""
+        """Handle mouse up events for column sorting and command expansion."""
+        x = event.x - 2  # Account for horizontal padding
+        
         # Header is at y=1 due to padding (padding: 1 2 in CSS)
         if event.y == 1:
-            x = event.x - 2  # Account for horizontal padding
             # Column positions based on header format: "     PID   CPU%↓    MEM%  COMMAND"
             # PID: 0-8, CPU: 10-16, MEM: 18-24, CMD: 26+
             if x < 10:
@@ -157,6 +159,18 @@ class ProcessList(Static):
                 self.sort_reverse = True
             self._refresh_display()
             event.stop()
+        
+        # Process rows start at y=3 (y=2 is separator line)
+        elif event.y >= 3 and x >= 26:
+            row_index = event.y - 3  # Convert y to process index
+            if 0 <= row_index < len(self._displayed_procs):
+                # Toggle expansion for this row
+                if self.expanded_index == row_index:
+                    self.expanded_index = -1  # Collapse
+                else:
+                    self.expanded_index = row_index  # Expand
+                self._refresh_display()
+                event.stop()
     
     def on_key(self, event: events.Key) -> None:
         """Handle key events."""
