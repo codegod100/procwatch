@@ -14,7 +14,7 @@ except ImportError:
 try:
     from textual.app import App, ComposeResult
     from textual.containers import Container, Horizontal, Vertical
-    from textual.widgets import Header, Footer, Static, Input, Button, Label
+    from textual.widgets import Footer, Static, Input, Button, Label
     from textual.binding import Binding
     from textual.reactive import reactive
     from textual.message import Message
@@ -102,9 +102,9 @@ class ProcessList(Static):
         pid_header = f"PID{sort_indicator}" if self.sort_by == "pid" else "PID"
         cmd_header = f"COMMAND{sort_indicator}" if self.sort_by == "cmd" else "COMMAND"
         
-        header = f"[bold cyan]{pid_header:>8}  {cpu_header:>6}  {mem_header:>6}  {cmd_header}[/]"
+        header = f"[bold #89b4fa]{pid_header:>8}  {cpu_header:>6}  {mem_header:>6}  {cmd_header}[/]"
         lines.append(header)
-        lines.append("[dim]" + "─" * 60 + "[/]")
+        lines.append("[#6c7086]" + "─" * 60 + "[/]")
         
         # Clamp selected index
         if self._displayed_procs:
@@ -129,9 +129,9 @@ class ProcessList(Static):
         
         if not self._displayed_procs:
             if self.search_filter:
-                lines.append("[dim]No matching processes[/]")
+                lines.append("[#6c7086]No matching processes[/]")
             else:
-                lines.append("[dim]No processes found[/]")
+                lines.append("[#6c7086]No processes found[/]")
         
         self.update("\n".join(lines))
     
@@ -199,49 +199,22 @@ class ProcessList(Static):
 class SearchBar(Container):
     """Search input bar."""
     
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._visible = False
-    
     def compose(self) -> ComposeResult:
         yield Label("Search:", classes="search-label")
         yield Input(placeholder="Filter by PID or command...", id="search-input")
-    
-    def toggle(self) -> None:
-        """Toggle search bar visibility."""
-        self._visible = not self._visible
-        if self._visible:
-            self.remove_class("hidden")
-            self.query_one(Input).focus()
-        else:
-            self.add_class("hidden")
-            self.query_one(Input).value = ""
-    
-    def show(self) -> None:
-        """Show the search bar."""
-        if not self._visible:
-            self.toggle()
-    
-    def hide(self) -> None:
-        """Hide the search bar."""
-        if self._visible:
-            self.toggle()
-    
-    def is_visible(self) -> bool:
-        """Check if search bar is visible."""
-        return self._visible
 
 
 class HelpScreen(Screen):
     """Help/controls screen."""
     
     BINDINGS = [
-        Binding("escape,q", "app.pop_screen", "Close"),
+        Binding("escape", "app.pop_screen", "Close"),
+        Binding("q", "app.quit", "Quit", priority=True),
     ]
     
     def compose(self) -> ComposeResult:
         yield Container(
-            Static("[bold cyan]Process Watcher TUI - Help[/]\n", classes="help-title"),
+            Static("[bold #cba6f7]Process Watcher TUI - Help[/]\n", classes="help-title"),
             Static("""
 [bold]Navigation[/]
   ↑/k       Move selection up
@@ -274,7 +247,8 @@ class DetailScreen(Screen):
     """Screen showing process details."""
     
     BINDINGS = [
-        Binding("escape,q", "app.pop_screen", "Close"),
+        Binding("escape", "app.pop_screen", "Close"),
+        Binding("q", "app.quit", "Quit", priority=True),
         Binding("k", "app.kill_process", "Kill Process"),
     ]
     
@@ -286,7 +260,7 @@ class DetailScreen(Screen):
     
     def compose(self) -> ComposeResult:
         yield Container(
-            Static("[bold cyan]Process Details[/]\n", classes="detail-title"),
+            Static("[bold #cba6f7]Process Details[/]\n", classes="detail-title"),
             Static("", id="detail-content"),
             classes="detail-container"
         )
@@ -321,11 +295,11 @@ class DetailScreen(Screen):
             mem_mb = mem_info.rss / (1024 * 1024)
             
         except psutil.NoSuchProcess:
-            content = f"[red]Process {proc.pid} no longer exists[/]"
+            content = f"[#f38ba8]Process {proc.pid} no longer exists[/]"
             self.query_one("#detail-content", Static).update(content)
             return
         except psutil.AccessDenied:
-            content = f"[yellow]Access denied to process {proc.pid}[/]"
+            content = f"[#f9e2af]Access denied to process {proc.pid}[/]"
             self.query_one("#detail-content", Static).update(content)
             return
         
@@ -353,30 +327,72 @@ class DetailScreen(Screen):
 class ProcessWatcherApp(App):
     """Main TUI application."""
     
-    CSS = """
-    Screen {
-        background: $surface;
-    }
+    # Catppuccin Mocha color palette
+    COLORS = """
+    $rosewater: #f5e0dc;
+    $flamingo: #f2cdcd;
+    $pink: #f5c2e7;
+    $mauve: #cba6f7;
+    $red: #f38ba8;
+    $maroon: #eba0ac;
+    $peach: #fab387;
+    $yellow: #f9e2af;
+    $green: #a6e3a1;
+    $teal: #94e2d5;
+    $sky: #89dceb;
+    $sapphire: #74c7ec;
+    $blue: #89b4fa;
+    $lavender: #b4befe;
+    $text: #cdd6f4;
+    $subtext1: #bac2de;
+    $subtext0: #a6adc8;
+    $overlay2: #9399b2;
+    $overlay1: #7f849c;
+    $overlay0: #6c7086;
+    $surface2: #585b70;
+    $surface1: #45475a;
+    $surface0: #313244;
+    $base: #1e1e2e;
+    $mantle: #181825;
+    $crust: #11111b;
+    """
     
-    .hidden {
-        display: none;
+    CSS = COLORS + """
+    Screen {
+        background: $base;
+        color: $text;
     }
     
     SearchBar {
         dock: top;
-        height: 3;
-        padding: 0 1;
-        background: $panel;
+        height: 2;
+        padding: 0;
+        background: $surface0;
         layout: horizontal;
     }
     
-    SearchBar Label {
-        padding: 1 1 0 0;
-        color: $text-muted;
+    SearchBar .search-label {
+        color: $lavender;
+        background: $surface0;
+        text-style: bold;
+        padding: 0 1;
+        margin-right: 0;
+        height: 2;
+        content-align: center middle;
+        border-right: solid $surface1;
     }
     
     SearchBar Input {
         width: 1fr;
+        background: $surface0;
+        color: $text;
+        border: none;
+        padding: 0 0 0 1;
+        height: 2;
+    }
+    
+    SearchBar Input:focus {
+        border-bottom: solid $mauve;
     }
     
     ProcessList {
@@ -387,31 +403,42 @@ class ProcessWatcherApp(App):
     .status-bar {
         dock: bottom;
         height: 1;
-        background: $panel;
+        background: $mantle;
         padding: 0 2;
-        color: $text-muted;
+        color: $subtext0;
     }
     
     .help-container, .detail-container {
         padding: 2 4;
         margin: 2 4;
-        background: $panel;
-        border: solid $primary;
+        background: $surface0;
+        border: solid $mauve;
     }
     
     .help-title, .detail-title {
         text-align: center;
         margin-bottom: 1;
+        color: $lavender;
     }
     
     .help-content {
         padding: 1 2;
     }
+    
+    Footer {
+        background: $mantle;
+        color: $subtext0;
+    }
+    
+    Header {
+        background: $mantle;
+        color: $lavender;
+    }
     """
     
     BINDINGS = [
         Binding("ctrl+c", "quit", "Quit", show=False),
-        Binding("q", "quit", "Quit"),
+        Binding("q", "quit", "Quit", priority=True),
         Binding("question_mark", "help", "Help"),
         Binding("slash", "toggle_search", "Search"),
         Binding("r", "refresh", "Refresh"),
@@ -435,10 +462,9 @@ class ProcessWatcherApp(App):
         self.refresh_rate = refresh_rate
         self.process_count = count
         self._refresh_timer = None
+        self._process_cache: dict[int, psutil.Process] = {}  # Cache processes by PID
     
     def compose(self) -> ComposeResult:
-        yield Header()
-        yield SearchBar(classes="hidden")
         yield ProcessList(count=self.process_count, id="proc-list")
         yield Footer()
     
@@ -460,39 +486,52 @@ class ProcessWatcherApp(App):
     def _get_processes(self) -> list[Proc]:
         """Get processes using psutil with CPU measurement."""
         procs = []
-        processes = list(psutil.process_iter(["pid", "cmdline", "name"]))
+        new_cache: dict[int, psutil.Process] = {}
         
-        # First pass: initialize CPU measurement
-        for p in processes:
+        for p in psutil.process_iter(["pid", "cmdline", "name"]):
             try:
-                p.cpu_percent(interval=0)
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                pass
-        
-        # Brief sleep for CPU measurement
-        time.sleep(0.1)
-        
-        # Second pass: collect data
-        for p in processes:
-            try:
-                cpu = p.cpu_percent(interval=0)
-                mem = p.memory_percent()
+                pid = p.info["pid"]
+                
+                # Reuse cached process object if available (for accurate CPU delta)
+                if pid in self._process_cache:
+                    proc = self._process_cache[pid]
+                else:
+                    proc = p
+                    proc.cpu_percent(interval=0)  # Initialize for next refresh
+                
+                # Get CPU percent since last call (non-blocking)
+                cpu = proc.cpu_percent(interval=None)
+                mem = proc.memory_percent()
                 cmd = p.info["cmdline"]
                 if cmd:
                     cmd = " ".join(cmd)
                 else:
                     cmd = p.info["name"] or "[unknown]"
-                procs.append(Proc(p.info["pid"], cpu, mem, cmd))
+                
+                procs.append(Proc(pid, cpu, mem, cmd))
+                new_cache[pid] = proc
+                
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
+        
+        # Update cache (removes stale processes automatically)
+        self._process_cache = new_cache
         
         return procs
     
     # Actions
     def action_toggle_search(self) -> None:
         """Toggle search bar."""
-        search_bar = self.query_one(SearchBar)
-        search_bar.toggle()
+        try:
+            search_bar = self.query_one(SearchBar)
+            # Remove it
+            search_bar.remove()
+            self.query_one(ProcessList).search_filter = ""
+        except Exception:
+            # Add it at the top
+            search_bar = SearchBar()
+            self.mount(search_bar, before=self.query_one(ProcessList))
+            search_bar.query_one(Input).focus()
     
     def action_refresh(self) -> None:
         """Force refresh."""
@@ -596,12 +635,19 @@ class ProcessWatcherApp(App):
     
     def on_key(self, event: events.Key) -> None:
         """Handle global key events."""
+        # Quit on 'q'
+        if event.key == "q":
+            self.exit()
+            event.stop()
         # Handle escape for search
-        if event.key == "escape":
-            search_bar = self.query_one(SearchBar)
-            if search_bar.is_visible():
-                search_bar.hide()
+        elif event.key == "escape":
+            try:
+                search_bar = self.query_one(SearchBar)
+                search_bar.remove()
+                self.query_one(ProcessList).search_filter = ""
                 event.stop()
+            except Exception:
+                pass
 
 
 def main():
